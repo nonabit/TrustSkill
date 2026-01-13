@@ -2,7 +2,7 @@
 from typing import List
 from .base import BaseAnalyzer
 from ..types import SecurityIssue, Script
-from ..rules.ast import PythonInjectionRule, ShellInjectionRule
+from ..rules.ast import PythonInjectionRule, ShellInjectionRule, JavaScriptInjectionRule
 
 
 class ASTAnalyzer(BaseAnalyzer):
@@ -12,8 +12,8 @@ class ASTAnalyzer(BaseAnalyzer):
         # 语言到规则的映射
         self.language_rules = {
             'python': [PythonInjectionRule()],
-            'shell': [ShellInjectionRule()],  # 新增
-            # 后续添加：'javascript'
+            'shell': [ShellInjectionRule()],
+            'javascript': [JavaScriptInjectionRule()],
         }
 
     def analyze(self, script: Script) -> List[SecurityIssue]:
