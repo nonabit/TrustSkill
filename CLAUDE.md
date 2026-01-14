@@ -15,6 +15,15 @@ uv sync
 # 运行扫描器
 uv run python -m src.scanner <skill_path>
 
+# 指定分析模式
+uv run python -m src.scanner <skill_path> --mode fast      # 仅正则
+uv run python -m src.scanner <skill_path> --mode standard  # 正则 + AST（默认）
+uv run python -m src.scanner <skill_path> --mode deep      # 正则 + AST + LLM
+
+# 输出格式
+uv run python -m src.scanner <skill_path> --format json    # JSON 输出
+uv run python -m src.scanner <skill_path> --quiet          # 静默模式
+
 # 扫描示例
 uv run python -m src.scanner examples/malicious/command-injection-skill/
 uv run python -m src.scanner examples/safe/hello-world-skill/
