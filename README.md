@@ -36,12 +36,39 @@ uv run python -m src.scanner examples/safe/hello-world-skill/
 ## 使用方法
 
 ```bash
-# 扫描单个 skill
+# 基本用法
 uv run python -m src.scanner <skill_path>
 
-# 示例输出
+# 指定分析模式
+uv run python -m src.scanner <skill_path> --mode fast      # 仅正则分析（最快）
+uv run python -m src.scanner <skill_path> --mode standard  # 正则 + AST（默认）
+uv run python -m src.scanner <skill_path> --mode deep      # 正则 + AST + LLM
+
+# 输出格式
+uv run python -m src.scanner <skill_path> --format json    # JSON 输出
+uv run python -m src.scanner <skill_path> --quiet          # 静默模式
+
+# 查看帮助
+uv run python -m src.scanner --help
+```
+
+### 命令行参数
+
+| 参数 | 说明 |
+|------|------|
+| `skill_path` | 要扫描的 skill 目录路径（必需） |
+| `-m, --mode` | 分析模式: fast/standard/deep（默认 standard） |
+| `--no-ast` | 禁用 AST 分析（等同于 --mode fast） |
+| `-f, --format` | 输出格式: text/json（默认 text） |
+| `-q, --quiet` | 静默模式，仅输出问题数量 |
+| `-v, --version` | 显示版本号 |
+
+### 示例输出
+
+```
 ============================================================
 扫描目标: examples/malicious/data-exfiltration-skill/
+分析模式: STANDARD (RegexAnalyzer, ASTAnalyzer)
 ============================================================
 
 ✗ 发现 9 个安全问题:
@@ -53,6 +80,8 @@ uv run python -m src.scanner <skill_path>
   规则: NETWORK_SECURITY
   描述: 从网络下载并执行脚本
   建议: 避免从不可信来源下载和执行代码，使用 HTTPS
+
+扫描耗时: 0.005 秒
 ```
 
 ## 项目结构

@@ -123,24 +123,82 @@ class SkillScanner:
 def main():
     """主函数"""
     import sys
+    import argparse
+    import json
+    import time
 
-    if len(sys.argv) < 2:
-        print("用法: python -m src.scanner <skill_path>")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(
+        prog='skill-scanner',
+        description='Skill Security Scanner - 检测 Agent Skills 的安全风险'
+    )
+    parser.add_argument('skill_path', help='要扫描的 skill 目录路径')
+    parser.add_argument('-m', '--mode', choices=['fast', 'standard', 'deep'],
+                        default='standard', help='分析模式 (默认: standard)')
+    parser.add_argument('--no-ast', action='store_true',
+                        help='禁用 AST 分析 (等同于 --mode fast)')
+    parser.add_argument('-f', '--format', choices=['text', 'json'],
+                        default='text', help='输出格式 (默认: text)')
+    parser.add_argument('-q', '--quiet', action='store_true',
+                        help='静默模式，仅输出问题数量')
+    parser.add_argument('-v', '--version', action='version', version='%(prog)s 0.2.0')
 
-    skill_path = sys.argv[1]
-    scanner = SkillScanner()
+    args = parser.parse_args()
+
+    # 确定分析模式
+    if args.no_ast:
+        mode = AnalysisMode.FAST
+    else:
+        mode = AnalysisMode(args.mode)
+
+    scanner = SkillScanner(mode=mode)
 
     try:
-        result = scanner.scan(skill_path)
-        scanner.print_result(result)
+        start_time = time.time()
+        result = scanner.scan(args.skill_path)
+        elapsed = time.time() - start_time
 
-        # 如果有严重或高风险问题，返回非零退出码
+        # 输出结果
+        if args.format == 'json':
+            output = {
+                'skill_path': result.skill_path,
+                'mode': mode.value,
+                'elapsed_seconds': round(elapsed, 3),
+                'is_safe': result.is_safe,
+                'summary': {
+                    'total': len(result.issues),
+                    'critical': result.critical_count,
+                    'high': result.high_count,
+                },
+                'issues': [
+                    {
+                        'rule_id': i.rule_id,
+                        'title': i.title,
+                        'description': i.description,
+                        'severity': i.severity.value,
+                        'line_number': i.line_number,
+                        'code_snippet': i.code_snippet,
+                        'recommendation': i.recommendation,
+                    }
+                    for i in result.issues
+                ]
+            }
+            print(json.dumps(output, ensure_ascii=False, indent=2))
+        elif args.quiet:
+            # 静默模式：仅输出统计
+            print(f"问题数量: {len(result.issues)} (严重: {result.critical_count}, 高: {result.high_count})")
+        else:
+            scanner.print_result(result)
+            print(f"扫描耗时: {elapsed:.3f} 秒")
+
+        # 退出码
         if result.critical_count > 0 or result.high_count > 0:
             sys.exit(1)
 
     except Exception as e:
-        print(f"{Fore.RED}错误: {e}{Style.RESET_ALL}")
+        if args.format == 'json':
+            print(json.dumps({'error': str(e)}, ensure_ascii=False))
+        else:
+            print(f"{Fore.RED}错误: {e}{Style.RESET_ALL}")
         sys.exit(1)
 
 
