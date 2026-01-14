@@ -24,6 +24,9 @@ uv run python -m src.scanner <skill_path> --mode deep      # 正则 + AST + LLM
 uv run python -m src.scanner <skill_path> --format json    # JSON 输出
 uv run python -m src.scanner <skill_path> --quiet          # 静默模式
 
+# LLM 深度检查
+uv run python -m src.scanner <skill_path> --export-for-llm # 导出供 LLM 检查
+
 # 扫描示例
 uv run python -m src.scanner examples/malicious/command-injection-skill/
 uv run python -m src.scanner examples/safe/hello-world-skill/
@@ -31,7 +34,29 @@ uv run python -m src.scanner examples/safe/hello-world-skill/
 
 ## 核心架构
 
-### 三层架构
+### 三层分析架构
+
+```
+Layer 1: 正则表达式（快速筛选）
+Layer 2: AST 分析（精确验证）
+Layer 3: LLM 分析（深度审查，通过 --export-for-llm 导出）
+```
+
+### 分析器系统
+
+1. **RegexAnalyzer** (`src/analyzers/regex_analyzer.py`)
+   - 使用正则表达式快速匹配危险模式
+   - 四个核心规则：CommandInjection、FileOperation、NetworkSecurity、SensitiveData
+
+2. **ASTAnalyzer** (`src/analyzers/ast_analyzer.py`)
+   - 精确的语法树分析，减少误报
+   - 支持 Python（标准库 ast）、Shell（tree-sitter）、JavaScript（tree-sitter）
+
+3. **LLM 检查** (`docs/llm-security-guide.md`)
+   - 通过 `--export-for-llm` 导出 skill 内容
+   - 用户将内容发送给任意 LLM 进行深度审查
+
+### 解析层
 
 1. **解析层** (`src/parser.py`)
    - `SkillParser` 负责解析 Agent Skills 格式
@@ -40,14 +65,8 @@ uv run python -m src.scanner examples/safe/hello-world-skill/
    - 从 `scripts/` 目录读取 .sh/.bash/.py/.js 文件
 
 2. **规则层** (`src/rules/`)
-   - 所有规则继承 `SecurityRule` 抽象基类
-   - 每个规则实现 `check(script: str) -> List[SecurityIssue]` 方法
-   - 使用正则表达式匹配危险模式
-   - 四个核心规则：
-     - `CommandInjectionRule`: 检测 eval、exec、管道到 shell 等
-     - `FileOperationRule`: 检测危险的文件删除、权限修改
-     - `NetworkSecurityRule`: 检测不安全的网络请求、代码下载执行
-     - `SensitiveDataRule`: 检测敏感信息访问（AWS 密钥、SSH 私钥等）
+   - `src/rules/regex/`: 正则规则（CommandInjection、FileOperation、NetworkSecurity、SensitiveData）
+   - `src/rules/ast/`: AST 规则（PythonInjection、ShellInjection、JavaScriptInjection）
 
 3. **扫描层** (`src/scanner.py`)
    - `SkillScanner` 协调解析器和规则
@@ -82,10 +101,10 @@ SKILL.md + scripts/
 
 ## 添加新规则
 
-1. 在 `src/rules/` 创建新文件，继承 `SecurityRule`
-2. 实现 `check()` 方法，返回 `List[SecurityIssue]`
-3. 在 `src/scanner.py` 的 `SkillScanner.__init__()` 中注册规则
-4. 在 `examples/malicious/` 创建测试用例
+1. 正则规则：在 `src/rules/regex/` 创建，继承 `SecurityRule`
+2. AST 规则：在 `src/rules/ast/` 创建，继承 `ASTSecurityRule`
+3. 在对应的分析器中注册规则
+4. 在 `examples/` 创建测试用例
 
 ## 示例目录
 

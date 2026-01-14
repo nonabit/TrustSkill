@@ -10,6 +10,9 @@ Agent Skills 是由 Anthropic 开发的开放标准，用于将指令、脚本�
 - ✅ **文件系统安全**：检测危险的文件操作
 - ✅ **网络安全**：发现未授权的网络请求和数据外泄
 - ✅ **敏感信息保护**：检测敏感数据访问和泄露风险
+- ✅ **多层分析**：正则表达式 + AST 分析，减少误报
+- ✅ **多语言支持**：支持 Shell、Python、JavaScript 脚本分析
+- ✅ **LLM 深度检查**：导出内容供 LLM 进行深度安全审查
 
 ## 安装
 
@@ -61,7 +64,29 @@ uv run python -m src.scanner --help
 | `--no-ast` | 禁用 AST 分析（等同于 --mode fast） |
 | `-f, --format` | 输出格式: text/json（默认 text） |
 | `-q, --quiet` | 静默模式，仅输出问题数量 |
+| `--export-for-llm` | 导出 skill 内容供 LLM 检查 |
 | `-v, --version` | 显示版本号 |
+
+### 分析模式说明
+
+| 模式 | 分析器 | 说明 |
+|------|--------|------|
+| `fast` | 正则表达式 | 最快，适合快速筛选 |
+| `standard` | 正则 + AST | 默认模式，平衡速度和准确性 |
+| `deep` | 正则 + AST + LLM | 使用 `--export-for-llm` 导出后手动发送给 LLM |
+
+### LLM 深度检查
+
+对于复杂的安全审查，可以导出 skill 内容供 LLM 分析：
+
+```bash
+# 导出 skill 内容
+uv run python -m src.scanner examples/malicious/command-injection-skill/ --export-for-llm
+
+# 将输出内容与 docs/llm-security-guide.md 中的检查提示词一起发送给 LLM
+```
+
+详见 [docs/llm-security-guide.md](docs/llm-security-guide.md)
 
 ### 示例输出
 
@@ -92,25 +117,24 @@ skill-security-scanner/
 │   ├── scanner.py         # 主扫描器
 │   ├── parser.py          # SKILL.md 解析器
 │   ├── types.py           # 类型定义
+│   ├── analyzers/         # 分析器
+│   │   ├── regex_analyzer.py   # 正则分析器
+│   │   └── ast_analyzer.py     # AST 分析器
+│   ├── ast_parsers/       # AST 解析器
+│   │   ├── python_parser.py    # Python AST
+│   │   ├── shell_parser.py     # Shell AST (tree-sitter)
+│   │   └── javascript_parser.py # JavaScript AST
 │   └── rules/             # 安全规则
-│       ├── command_injection.py
-│       ├── file_operations.py
-│       ├── network_security.py
-│       └── sensitive_data.py
+│       ├── regex/         # 正则规则
+│       └── ast/           # AST 规则
 ├── examples/              # 示例 skills
 │   ├── malicious/        # 恶意示例（用于演示）
-│   │   ├── command-injection-skill/
-│   │   │   ├── SKILL.md
-│   │   │   └── scripts/
-│   │   ├── data-exfiltration-skill/
-│   │   └── file-deletion-skill/
 │   └── safe/             # 安全示例
-│       └── hello-world-skill/
-│           └── SKILL.md
 ├── docs/                  # 文档
 │   ├── README.md         # 检测规则详细说明
-│   └── agent-skills-format.md  # Agent Skills 格式定义
-├── CLAUDE.md              # 项目开发指南（给 Claude Code 使用）
+│   ├── agent-skills-format.md  # Agent Skills 格式定义
+│   └── llm-security-guide.md   # LLM 安全检查指南
+├── CLAUDE.md              # 项目开发指南
 └── tests/                 # 测试
 ```
 
