@@ -140,9 +140,28 @@ def main():
                         default='text', help='输出格式 (默认: text)')
     parser.add_argument('-q', '--quiet', action='store_true',
                         help='静默模式，仅输出问题数量')
+    parser.add_argument('--export-for-llm', action='store_true',
+                        help='导出 skill 内容供 LLM 检查（配合 docs/llm-security-guide.md 使用）')
     parser.add_argument('-v', '--version', action='version', version='%(prog)s 0.2.0')
 
     args = parser.parse_args()
+
+    # 处理 --export-for-llm
+    if args.export_for_llm:
+        skill_parser = SkillParser(args.skill_path)
+        skill_parser.parse()
+        config = skill_parser.config or {}
+        print("=== SKILL 信息 ===")
+        print(f"名称: {config.get('name', '未知')}")
+        print(f"描述: {config.get('description', '无')}")
+        print("\n=== 脚本内容 ===\n")
+        for script in skill_parser.get_all_scripts_with_metadata():
+            print(f"--- {script.source} ({script.language}) ---")
+            print(script.content)
+            print()
+        print("---")
+        print("请将以上内容与 docs/llm-security-guide.md 中的检查提示词一起发送给 LLM 进行安全审查。")
+        sys.exit(0)
 
     # 确定分析模式
     if args.no_ast:
