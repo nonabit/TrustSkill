@@ -1,5 +1,5 @@
 def main():
-    print("Hello from skill-security-scanner!")
+    print("Hello from trustskill!")
 
 
 if __name__ == "__main__":

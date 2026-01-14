@@ -1,4 +1,4 @@
-# Skill Security Scanner
+# TrustSkill
 
 一个用于检测 Agent Skills 安全性的工具，帮助识别潜在的恶意行为和安全风险。
 
@@ -112,7 +112,7 @@ uv run python -m src.scanner examples/malicious/command-injection-skill/ --expor
 ## 项目结构
 
 ```
-skill-security-scanner/
+trustskill/
 ├── src/                    # 核心代码
 │   ├── scanner.py         # 主扫描器
 │   ├── parser.py          # SKILL.md 解析器

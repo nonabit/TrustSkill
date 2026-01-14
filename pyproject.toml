@@ -1,7 +1,7 @@
 [project]
-name = "skill-security-scanner"
+name = "trustskill"
 version = "0.1.0"
-description = "一个用于检测 Claude Code Skills 安全性的工具"
+description = "一个用于检测 Agent Skills 安全性的工具"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

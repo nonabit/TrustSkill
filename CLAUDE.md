@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-Skill Security Scanner 是一个用于检测 Agent Skills 安全性的 Python 工具。它通过静态分析 SKILL.md 文件和相关脚本，识别命令注入、数据外泄、文件破坏等安全风险。
+TrustSkill 是一个用于检测 Agent Skills 安全性的 Python 工具。它通过静态分析 SKILL.md 文件和相关脚本，识别命令注入、数据外泄、文件破坏等安全风险。
 
 ## 常用命令
 
