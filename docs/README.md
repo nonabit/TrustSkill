@@ -1,12 +1,12 @@
-# Skill Security Scanner 文档
+# TrustSkill 文档
 
 ## 概述
 
-Skill Security Scanner 是一个用于检测 Claude Code Skills 安全性的工具。它可以识别 skill 脚本中的潜在恶意行为和安全风险。
+TrustSkill 是一个用于检测 Agent Skills 安全性的工具。它可以识别 skill 脚本中的潜在恶意行为和安全风险。
 
 ## 为什么需要这个工具？
 
-Claude Code Skills 允许用户通过 YAML 配置文件定义自定义命令和脚本。虽然这提供了强大的扩展能力，但也带来了安全风险：
+Agent Skills 允许用户通过 YAML 配置文件定义自定义命令和脚本。虽然这提供了强大的扩展能力，但也带来了安全风险：
 
 - **命令注入**：恶意 skill 可能执行任意命令
 - **数据外泄**：窃取环境变量、密钥等敏感信息

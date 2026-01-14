@@ -128,8 +128,8 @@ def main():
     import time
 
     parser = argparse.ArgumentParser(
-        prog='skill-scanner',
-        description='Skill Security Scanner - 检测 Agent Skills 的安全风险'
+        prog='trustskill',
+        description='TrustSkill - 检测 Agent Skills 的安全风险'
     )
     parser.add_argument('skill_path', help='要扫描的 skill 目录路径')
     parser.add_argument('-m', '--mode', choices=['fast', 'standard', 'deep'],

@@ -1,8 +1,8 @@
-# Skill Security Scanner 重构开发计划
+# TrustSkill 重构开发计划
 
 ## 项目目标
 
-将 Skill Security Scanner 从单纯的正则表达式分析升级为支持 AST 和 LLM 的多层分析架构。
+将 TrustSkill 从单纯的正则表达式分析升级为支持 AST 和 LLM 的多层分析架构。
 
 ## 总体架构
 
