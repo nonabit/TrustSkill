@@ -1,6 +1,5 @@
 """安全扫描器"""
-from pathlib import Path
-from typing import List
+from typing import List, Optional, Callable
 from colorama import Fore, Style, init
 
 from .parser import SkillParser
@@ -8,9 +7,14 @@ from .types import ScanResult, SecurityIssue, Severity, AnalysisMode
 from .analyzers.base import BaseAnalyzer
 from .analyzers.regex_analyzer import RegexAnalyzer
 from .analyzers.ast_analyzer import ASTAnalyzer
+from .formatters import RichFormatter, JsonFormatter, MarkdownFormatter
+from .formatters.rich_formatter import ScanProgress
 
 # 初始化 colorama
 init(autoreset=True)
+
+# 进度回调类型：(当前文件名, 已处理数, 总数, 已发现问题数)
+ProgressCallback = Callable[[str, int, int, int], None]
 
 
 class SkillScanner:
@@ -48,18 +52,72 @@ class SkillScanner:
 
         return analyzers
 
-    def scan(self, skill_path: str) -> ScanResult:
-        """扫描 skill 目录"""
+    def scan(self, skill_path: str,
+             progress_callback: Optional[ProgressCallback] = None) -> ScanResult:
+        """扫描 skill 目录
+
+        Args:
+            skill_path: skill 目录路径
+            progress_callback: 可选的进度回调函数
+
+        Returns:
+            扫描结果
+        """
         parser = SkillParser(skill_path)
         parser.parse()
 
+        scripts = parser.get_all_scripts_with_metadata()
+        total_scripts = len(scripts)
         all_issues: List[SecurityIssue] = []
 
-        # 使用新的分析器系统
-        for script in parser.get_all_scripts_with_metadata():
+        for idx, script in enumerate(scripts):
+            # 回调进度
+            if progress_callback:
+                progress_callback(script.source, idx, total_scripts, len(all_issues))
+
             for analyzer in self.analyzers:
                 issues = analyzer.analyze(script)
+                # 为每个 issue 填充 file_path 和 analyzer
+                for issue in issues:
+                    if issue.file_path is None:
+                        issue.file_path = script.source
+                    if issue.analyzer is None:
+                        issue.analyzer = analyzer.name
                 all_issues.extend(issues)
+
+        # 最后一次回调
+        if progress_callback:
+            progress_callback("", total_scripts, total_scripts, len(all_issues))
+
+        return ScanResult(skill_path=skill_path, issues=all_issues)
+
+    def scan_with_progress(self, skill_path: str) -> ScanResult:
+        """带进度显示的扫描"""
+        parser = SkillParser(skill_path)
+        parser.parse()
+        scripts = parser.get_all_scripts_with_metadata()
+
+        progress = ScanProgress()
+        progress.start(len(scripts))
+
+        all_issues: List[SecurityIssue] = []
+
+        try:
+            for script in scripts:
+                progress.update(script.source)
+
+                for analyzer in self.analyzers:
+                    issues = analyzer.analyze(script)
+                    for issue in issues:
+                        if issue.file_path is None:
+                            issue.file_path = script.source
+                        if issue.analyzer is None:
+                            issue.analyzer = analyzer.name
+                    all_issues.extend(issues)
+
+                progress.set_issues_count(len(all_issues))
+        finally:
+            progress.stop()
 
         return ScanResult(skill_path=skill_path, issues=all_issues)
 
@@ -124,7 +182,6 @@ def main():
     """主函数"""
     import sys
     import argparse
-    import json
     import time
 
     parser = argparse.ArgumentParser(
@@ -136,13 +193,15 @@ def main():
                         default='standard', help='分析模式 (默认: standard)')
     parser.add_argument('--no-ast', action='store_true',
                         help='禁用 AST 分析 (等同于 --mode fast)')
-    parser.add_argument('-f', '--format', choices=['text', 'json'],
-                        default='text', help='输出格式 (默认: text)')
+    parser.add_argument('-f', '--format', choices=['rich', 'json', 'markdown', 'text'],
+                        default='rich', help='输出格式 (默认: rich)')
     parser.add_argument('-q', '--quiet', action='store_true',
                         help='静默模式，仅输出问题数量')
+    parser.add_argument('--no-progress', action='store_true',
+                        help='禁用进度显示')
     parser.add_argument('--export-for-llm', action='store_true',
                         help='导出 skill 内容供 LLM 检查（配合 docs/llm-security-guide.md 使用）')
-    parser.add_argument('-v', '--version', action='version', version='%(prog)s 0.2.0')
+    parser.add_argument('-v', '--version', action='version', version='%(prog)s 0.3.0')
 
     args = parser.parse_args()
 
@@ -171,41 +230,38 @@ def main():
 
     scanner = SkillScanner(mode=mode)
 
+    # 选择格式化器
+    if args.format == 'json':
+        formatter = JsonFormatter()
+    elif args.format == 'markdown':
+        formatter = MarkdownFormatter()
+    elif args.format == 'rich':
+        formatter = RichFormatter()
+    else:
+        formatter = None  # 使用旧版 text 格式
+
     try:
         start_time = time.time()
-        result = scanner.scan(args.skill_path)
+
+        # 根据设置决定是否显示进度
+        if args.format == 'rich' and not args.no_progress and not args.quiet:
+            result = scanner.scan_with_progress(args.skill_path)
+        else:
+            result = scanner.scan(args.skill_path)
+
         elapsed = time.time() - start_time
 
         # 输出结果
-        if args.format == 'json':
-            output = {
-                'skill_path': result.skill_path,
-                'mode': mode.value,
-                'elapsed_seconds': round(elapsed, 3),
-                'is_safe': result.is_safe,
-                'summary': {
-                    'total': len(result.issues),
-                    'critical': result.critical_count,
-                    'high': result.high_count,
-                },
-                'issues': [
-                    {
-                        'rule_id': i.rule_id,
-                        'title': i.title,
-                        'description': i.description,
-                        'severity': i.severity.value,
-                        'line_number': i.line_number,
-                        'code_snippet': i.code_snippet,
-                        'recommendation': i.recommendation,
-                    }
-                    for i in result.issues
-                ]
-            }
-            print(json.dumps(output, ensure_ascii=False, indent=2))
-        elif args.quiet:
+        if args.quiet:
             # 静默模式：仅输出统计
             print(f"问题数量: {len(result.issues)} (严重: {result.critical_count}, 高: {result.high_count})")
+        elif formatter:
+            if args.format == 'rich':
+                formatter.print(result, mode, elapsed)
+            else:
+                print(formatter.format(result, mode, elapsed))
         else:
+            # 旧版 text 格式
             scanner.print_result(result)
             print(f"扫描耗时: {elapsed:.3f} 秒")
 
@@ -215,6 +271,7 @@ def main():
 
     except Exception as e:
         if args.format == 'json':
+            import json
             print(json.dumps({'error': str(e)}, ensure_ascii=False))
         else:
             print(f"{Fore.RED}错误: {e}{Style.RESET_ALL}")
